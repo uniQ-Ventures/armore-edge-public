@@ -1,0 +1,17 @@
+# armore-edge windows release pipeline — SKELETON.
+# Fill in the build + SIGNING steps (signing certs are operator-provisioned, #1162).
+name: release-windows
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+jobs:
+  build:
+    # runs-on: windows runner (set macos-latest / windows-latest as appropriate)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: TODO build windows artifact
+        run: echo "TODO: build + sign the windows release artifact (signing certs via secrets, #1162)"
+      # - name: Upload release asset
+      #   uses: softprops/action-gh-release@v2
