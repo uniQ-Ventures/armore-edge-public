@@ -1,0 +1,74 @@
+name: Task
+description: A backlog unit. Complexity + Gate + a real dependency — never time.
+title: "<repo>: <imperative, specific> — <the one-line what>"
+labels: ["task"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Backlog convention (hard rule).** Every ticket carries **Complexity (S/M/L/XL)**, a
+        **Gate**, and a **Depends-on that exists** — and **no time framing** (no weeks, days,
+        sprints, quarters, deadlines, ETAs, "by \<date\>"). Time estimates go stale the moment
+        they're written and get quoted as commitments by people who didn't write them.
+        Scheduling lives in the operator's deck; the deck is the only place weeks live, and the
+        deck is not a ticket.
+  - type: textarea
+    id: what
+    attributes:
+      label: What it is
+      description: 2–4 lines describing the **capability**, not a task list. Cite file:line where you can.
+    validations:
+      required: true
+  - type: input
+    id: depends_on
+    attributes:
+      label: Depends on
+      description: >
+        A thing that EXISTS today — `file:line`, a merged PR, or a shipped surface — OR a named
+        upstream ticket (#NNNN). **NEVER "nothing."** If greenfield, cite the substrate it builds on.
+        This is the load-bearing field: it is what keeps the backlog from becoming a wish list.
+      placeholder: "e.g. crates/net/src/rotation.rs:191 · or PR #1490 · or #1628 (upstream identity)"
+    validations:
+      required: true
+  - type: dropdown
+    id: complexity
+    attributes:
+      label: Complexity
+      description: Effort-shape, NOT time. An **XL must decompose into ≥3 real sub-items** (list them in "What it is") — an XL is an epic pointer, not a bucket.
+      options: ["S", "M", "L", "XL"]
+    validations:
+      required: true
+  - type: dropdown
+    id: gate
+    attributes:
+      label: Gate
+      description: What must clear before this can START. A gate is a SEQUENCING label, not permission to stay vague — a gated ticket must be fully specced and ready to start the moment the gate clears.
+      options:
+        - none
+        - upstream-primitive
+        - patent
+        - credentials
+        - physical-witness
+        - adversarial-review
+        - spend
+        - operator-decision
+    validations:
+      required: true
+  - type: input
+    id: area
+    attributes:
+      label: Area
+      description: The subsystem/surface (drives the `area:<...>` label). e.g. net, chain, drive, link, sdk, app, legal, mobile, discovery, ci, docs.
+    validations:
+      required: true
+  - type: checkboxes
+    id: convention
+    attributes:
+      label: Convention check
+      options:
+        - label: No time-based framing (no weeks/days/sprints/quarters/deadlines/ETAs/dates).
+          required: true
+        - label: '"Depends on" cites something that exists today or a named upstream ticket — not "nothing".'
+          required: true
+        - label: If XL, "What it is" lists ≥3 real sub-items. If gated, this ticket is still fully specced.
+          required: true
