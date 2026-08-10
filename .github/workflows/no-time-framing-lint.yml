@@ -1,0 +1,70 @@
+name: Backlog convention — lint + label
+
+# Two jobs in one, from the DEFAULT branch (where issue-triggered workflows run):
+#  1. LINT — flag time-based framing (tickets carry complexity + gate, never time).
+#  2. LABEL — map the Task issue-form fields to labels: complexity:<S|M|L|XL>, gate:<...>, area:<...>.
+# Flags rather than hard-fails (an issue isn't a PR check). `backlog-exempt` overrides the lint.
+
+on:
+  issues:
+    types: [opened, edited]
+
+permissions:
+  issues: write
+
+jobs:
+  convention:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            if (!issue) return;
+            const { owner, repo } = context.repo;
+            const num = issue.number;
+            const body = issue.body || '';
+            const labels = (issue.labels || []).map(l => (l.name || l).toLowerCase());
+
+            // ---- 1. time-framing lint ----
+            if (!labels.includes('backlog-exempt')) {
+              const text = `${issue.title || ''}\n${body}`;
+              const PATTERNS = [
+                /\b\d+\s*[-–]?\s*(hour|hr|day|week|month|quarter|year|sprint)s?\b/i,
+                /\b(this|next|last)\s+(week|month|quarter|sprint)\b/i,
+                /\bsprint\s*\d/i,
+                /\b(deadline|ETA|due\s+date|EOD|EOW|EOM)\b/i,
+                /\bby\s+(Q[1-4]\b|end\s+of|(Mon|Tue|Wed|Thu|Fri|Sat|Sun)|(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec))/i,
+                /\bin\s+\d+\s+(day|week|month|quarter)s?\b/i,
+              ];
+              const hit = PATTERNS.find(re => re.test(text));
+              const has = labels.includes('needs-fix:time-framing');
+              if (hit && !has) {
+                await github.rest.issues.addLabels({ owner, repo, issue_number: num, labels: ['needs-fix:time-framing'] });
+                await github.rest.issues.createComment({ owner, repo, issue_number: num,
+                  body: `⏱️ **Backlog convention:** time-based framing detected (matched \`${text.match(hit)[0]}\`). ` +
+                        `Tickets carry **complexity (S/M/L/XL)** + a **Gate** + a real **Depends-on**, never time. ` +
+                        `Remove the weeks/days/sprints/deadlines and re-edit. (False positive? add \`backlog-exempt\`.)` });
+              } else if (!hit && has) {
+                await github.rest.issues.removeLabel({ owner, repo, issue_number: num, name: 'needs-fix:time-framing' }).catch(() => {});
+              }
+            }
+
+            // ---- 2. field → label (Task issue-form) ----
+            // Issue forms render as "### <Label>\n\n<value>". Pull each field's value.
+            const field = (name) => {
+              const re = new RegExp('###\\s*' + name + '\\s*\\n+([^\\n]+)', 'i');
+              const m = body.match(re); return m ? m[1].trim() : null;
+            };
+            const wanted = [];
+            const cx = field('Complexity');
+            if (cx && /^(S|M|L|XL)$/i.test(cx)) wanted.push(`complexity:${cx.toUpperCase()}`);
+            const GATES = ['none','upstream-primitive','patent','credentials','physical-witness','adversarial-review','spend','operator-decision'];
+            const gate = field('Gate');
+            if (gate && GATES.includes(gate.toLowerCase())) wanted.push(`gate:${gate.toLowerCase()}`);
+            let area = field('Area');
+            if (area) { area = area.toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30); if (area) wanted.push(`area:${area}`); }
+            for (const name of wanted) {
+              try { await github.rest.issues.addLabels({ owner, repo, issue_number: num, labels: [name] }); }
+              catch (e) { core.warning(`label ${name}: ${e.message}`); }
+            }
