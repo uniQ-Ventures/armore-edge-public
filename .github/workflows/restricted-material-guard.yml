@@ -1,0 +1,121 @@
+name: Restricted-Material Guard
+
+# Blocks restricted internal material from this public repository.
+#
+# The patterns below name CUSTODY and CONTAINERS only — a document class, a licence
+# identifier, a module name. They are deliberately free of any description of what the
+# restricted material does, because this file is public and such a description would
+# itself be the thing the guard exists to prevent.
+#
+# Rationale, coverage measurements and the companion private-side audit are documented
+# in the internal repository, not here.
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: ['**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  restricted-material-guard:
+    name: Block restricted material from the public tree
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout full tree
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Scan tracked paths and content for custody markers
+        shell: bash
+        run: |
+          set -uo pipefail
+
+          # This workflow is always skipped — it necessarily contains the markers.
+          # Further legitimate exceptions: one ERE per line in `.restricted-guard-allow`
+          # at the repo root. An entry there needs an owner ruling, not a green build.
+          GUARD_FILE=".github/workflows/restricted-material-guard.yml"
+          ALLOW_FILE=".restricted-guard-allow"
+
+          # --- custody markers (ERE, one per line; OR-combined) ------------------
+          # NOTE: `grep -f` treats every line as a pattern -> NO blank lines and NO
+          # '#' comments inside this heredoc (a blank line matches every line; a '#'
+          # line matches any line containing '#').
+          PATTERNS="$(mktemp)"
+          cat > "$PATTERNS" <<'PAT'
+          patent[-_ ]?brief
+          patent[-_ ]?pending
+          patent surface
+          invention[-_ ]?disclosure
+          IDF[-_ ]?[0-9]
+          licenseref-armore-proprietary
+          fl[-_]sovereign
+          secure-aggregation-design
+          PAT
+
+          # --- self-test, before any verdict -------------------------------------
+          # An empty result is not evidence: a broken matcher and a clean tree print
+          # the same zero. Prove the matcher fires on a known positive and stays
+          # silent on a known negative, or fail the job rather than report a green.
+          POSF="$(mktemp)"; printf 'see patent-briefs/01.md and IDF 3\n' > "$POSF"
+          NEGF="$(mktemp)"; printf 'an ordinary line about ask-across-devices\n' > "$NEGF"
+          POS=$(grep -c -i -E -f "$PATTERNS" "$POSF" || true)
+          NEG=$(grep -c -i -E -f "$PATTERNS" "$NEGF" || true)
+          echo "GUARD_CONTROL_POS=$POS"
+          echo "GUARD_CONTROL_NEG=$NEG"
+          if [ "${POS:-0}" -lt 1 ] || [ "${NEG:-0}" -ne 0 ]; then
+            echo "::error::Guard self-test failed (pos=$POS expected >=1, neg=$NEG expected 0)."
+            echo "The matcher cannot be shown to discriminate, so no verdict from it is usable."
+            exit 1
+          fi
+
+          # --- scope assertion ---------------------------------------------------
+          NFILES=$(git ls-files | grep -v -x -F "$GUARD_FILE" | wc -l | tr -d ' ')
+          echo "GUARD_FILES_SCANNED=$NFILES"
+          if [ "$NFILES" -eq 0 ]; then
+            echo "::error::Zero files in scope — that is a vacuous pass, not a clean tree."
+            exit 1
+          fi
+
+          # --- two arms ----------------------------------------------------------
+          # ARM 1 PATH    — a whole-file crossing under its own name.
+          # ARM 2 CONTENT — the same bytes pasted under an innocuous name. This arm is
+          #                 the one that matters: a path-only check is defeated by `mv`.
+          HITS="$(mktemp)"
+          git ls-files | grep -v -x -F "$GUARD_FILE" \
+            | grep -i -E -f "$PATTERNS" | sed 's/^/PATH    /' >> "$HITS" || true
+          git grep -I -n -i -E -f "$PATTERNS" -- . \
+            | grep -v -F "$GUARD_FILE:" | sed 's/^/CONTENT /' >> "$HITS" || true
+
+          # --- allowlist, applied AFTER matching so every drop is printed ---------
+          if [ -f "$ALLOW_FILE" ]; then
+            ALLOW="$(mktemp)"
+            grep -v -e '^$' -e '^#' "$ALLOW_FILE" > "$ALLOW" || true
+            if [ -s "$ALLOW" ]; then
+              echo "GUARD_HITS_BEFORE_ALLOW=$(wc -l < "$HITS" | tr -d ' ')"
+              while IFS= read -r entry; do echo "GUARD_ALLOW_ENTRY=$entry"; done < "$ALLOW"
+              KEPT="$(mktemp)"
+              grep -v -E -f "$ALLOW" "$HITS" > "$KEPT" || true
+              mv "$KEPT" "$HITS"
+              echo "GUARD_HITS_AFTER_ALLOW=$(wc -l < "$HITS" | tr -d ' ')"
+            fi
+          fi
+
+          COUNT=$(wc -l < "$HITS" | tr -d ' ')
+          echo "GUARD_HITS=$COUNT"
+          if [ "$COUNT" -ne 0 ]; then
+            echo "::error::Restricted material detected in this public tree."
+            cat "$HITS"
+            echo ""
+            echo "This material is restricted and must not exist in a public repository."
+            echo "Remove it from the tree. A public commit cannot be recalled from clones"
+            echo "that have already pulled it, so escalate to the repository owner before"
+            echo "attempting any history rewrite. Do NOT add an allowlist entry to turn this"
+            echo "green — an entry is an owner ruling that a specific path is not restricted."
+            exit 1
+          fi
+          echo "ok: no custody marker in $NFILES tracked files (path or content)."
