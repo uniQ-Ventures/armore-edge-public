@@ -77,7 +77,7 @@ It is **also published here on its own**, if you would rather not install the ap
 |---|---|
 | CLI | `armore-darwin-arm64`, `armore-darwin-x86_64`, `armore-linux-arm64`, `armore-linux-x86_64`, `armore.exe` |
 | git remote helper | the matching `git-remote-armore-*` for each, so `git` can push a repository to a workspace over the mesh |
-| SDK addons | 4 native `.node` addons, for embedding the engine in your own Node application |
+| SDK addons | 10 native `.node` addons — 5 platforms, each published both plain and `.packed` — for embedding the engine in your own Node application |
 
 ⚠️ The loose download is a **bare binary** — it does not carry the installer's notarisation,
 so macOS may quarantine it on first run. The copy inside the installer does not have that
