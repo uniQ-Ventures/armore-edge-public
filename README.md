@@ -8,48 +8,62 @@ files with the reasoning running on your machine.
 > Development happens in a separate private repository. Do not read this repo expecting
 > to audit the product's behaviour; read the SBOMs and the receipt instead.
 
-## Download — v1.0.11
+## Download — v1.0.12
 
-**→ [Releases · v1.0.11](https://github.com/uniQ-Ventures/armore-edge-public/releases/tag/v1.0.11)**
+**→ [Releases · v1.0.12](https://github.com/uniQ-Ventures/armore-edge-public/releases/tag/v1.0.12)**
 
-No account, no waitlist, no sign-in. **104 files: 52 payloads and 52 Sigstore bundles,
-paired one to one with none left over.**
+No account, no waitlist, no sign-in. **134 files: 61 payloads, each paired one to one with
+its own Sigstore bundle, and 12 macOS signing records.** No payload is left unpaired.
 
 | platform | file | size | signing |
 |---|---|---|---|
-| macOS Apple silicon | `Armore-Edge-1.0.11-arm64.dmg` | 139.0 MB | ✅ signed, notarised, **stapled** — opens without a Gatekeeper warning |
-| macOS Intel | `Armore-Edge-1.0.11-x64.dmg` | 148.2 MB | ✅ signed and notarised — ⚠️ **no user-testing pass** |
-| Windows x64 | `Armore-Edge-Setup-1.0.11-x64.exe` | 105.4 MB | ❌ **not Authenticode-signed — SmartScreen will warn you.** Click *More info → Run anyway* if you choose to proceed |
-| Linux (Debian/Ubuntu) | `Armore-Edge-1.0.11-amd64.deb` | 95.3 MB | ❌ unsigned, **x86_64 only** — ⚠️ **tested under WSL2, not on a bare-metal desktop** |
-| Linux (portable) | `Armore-Edge-1.0.11.AppImage` | 153.1 MB | ❌ unsigned — remember `chmod +x` before running it |
+| macOS Apple silicon | `Armore-Edge-1.0.12-arm64.dmg` | 129.7 MB | ✅ signed, notarised, **stapled** — opens without a Gatekeeper warning |
+| macOS Intel | `Armore-Edge-1.0.12-x64.dmg` | 139.7 MB | ✅ signed and notarised — ⚠️ **not exercised in this release's testing** |
+| Windows x64 | `Armore-Edge-Setup-1.0.12-x64.exe` | 99.4 MB | ❌ **not Authenticode-signed — SmartScreen will warn you.** Click *More info → Run anyway* if you choose to proceed |
+| Linux `.deb` x86_64 | `Armore-Edge-1.0.12-amd64.deb` | 90.5 MB | ❌ unsigned — ⚠️ **not exercised in this release's testing** |
+| Linux AppImage x86_64 | `Armore-Edge-1.0.12-x86_64.AppImage` | 144.8 MB | ❌ unsigned — remember `chmod +x` before running it |
+| Linux `.deb` arm64 | `Armore-Edge-1.0.12-arm64.deb` | 105.7 MB | ❌ unsigned — **new in 1.0.12**, ⚠️ **not exercised in this release's testing** |
+| Linux AppImage arm64 | `Armore-Edge-1.0.12-arm64.AppImage` | 140.5 MB | ❌ unsigned — **new in 1.0.12**, remember `chmod +x` |
 
 Also published: `*-mac.app.zip` for both Macs (used by the updater, not the normal way to
-install), 5 blockmaps, and 3 signed update manifests.
+install), 5 blockmaps, and 4 signed update manifests.
 
 Every artifact carries a Sigstore attestation proving **where it was built**. That is not
 the same thing as an OS-trusted code signature, and on Windows and Linux there is nothing
 for your operating system to check.
 
-**There is no arm64 Linux app.** The `package-app` matrix is four legs — two macOS, one
-Linux x86_64, one Windows — so there is no arm64 `.deb` and no arm64 AppImage. The arm64
-Linux **CLI** does ship, below.
+**arm64 Linux is now a packaged target.** The `package-app` matrix is five legs — two macOS,
+Linux x86_64, Linux arm64, Windows — so 1.0.12 is the first release carrying an arm64 `.deb`
+and an arm64 AppImage. Earlier releases shipped only the arm64 Linux **CLI**.
 
-## New in v1.0.11
+⚠️ **Built and signed is not the same as exercised.** This release's testing ran on **macOS
+Apple silicon and Windows x64 only**. Nobody installed any Linux package — x86_64 or arm64 —
+and nobody installed the Intel Mac build. They are produced by the same workflow as the two
+that were tested; that is a reason to expect them to work, not evidence that they do.
 
-- **`armore mcp-serve` — point your AI tools at this machine.** Bridges an external MCP
-  client (Claude Code, Codex, Copilot, Cursor) to the model on your own hardware. This is
-  the **inbound** direction: an outside tool asks Armore. Armore reaching out to other
-  services as a client is not in this release.
+## New in v1.0.12
+
+- **arm64 Linux packages.** A `.deb` and an AppImage for arm64, built alongside the x86_64
+  ones. Previously only the arm64 Linux CLI shipped. ⚠️ Nobody has installed either — see the
+  testing note above.
+- **Dependency advisories cleared at the source, not suppressed.** Ten advisories against a
+  DNS library reached by the peer-to-peer layer were resolved by **removing that library from
+  the dependency graph**, not by adding exemptions. You can check: the audit step passes with
+  no entries added to the ignore list, and the SBOMs below name what actually ships.
+- **A truncated answer now says so.** When an answer drawn from a paired machine is cut short,
+  the text ends in `…` rather than stopping mid-thought as though it were complete.
+- **A machine with no model says what is happening.** Instead of an empty state, it tells you
+  the answer is coming from your paired devices.
 - **Your machines can share the work.** A machine with no model of its own can ask a paired
-  machine that has one, over your own encrypted link. We have run this **between two
-  machines**; with more than two we are not yet confident the right one answers every time.
-- **It refuses rather than guessing.** Ask about something that is not in your documents
-  and you get an honest *"Not found"* instead of a confident answer assembled from nothing.
-- **The command-line tool now ships inside the installer** on all three systems, so it
-  carries the same signature the app does. On Linux the package also links it to
-  `/usr/bin/armore`.
-- **QR pairing is gone, not postponed.** Pairing is the workspace-key path and the short
-  code that makes it safe.
+  machine that has one, over your own encrypted link. ⚠️ Every run we have observed used a
+  **direct** connection between the two machines. We have not seen it work over a relay — the
+  path taken when a restrictive network blocks a direct link — so on such a network we do not
+  know that it works. With more than two machines we are not yet confident the right one
+  answers every time.
+- **It refuses rather than guessing.** Ask about something that is not in your documents and
+  you get an honest *"Not found"* instead of a confident answer assembled from nothing.
+- **Clearer refusals when two AI tools connect at once.** The second one is told the first
+  holds the connection, instead of being told the service is not running.
 
 ## The command-line tool
 
@@ -74,10 +88,15 @@ binary as its siblings.
 
 ## Before you install, two things we would rather you hear from us
 
-1. **First run downloads a model — about 4.9 GB.** The app ships without one. It fetches
-   Llama 3.1 8B Instruct (Q4_K_M) from a public model host and asks you first. It is a
-   **third-party open-weights model that we package and run — Armore did not train it.**
-   After that, the reasoning is local and works offline.
+1. **First run downloads a model, and how big depends on your machine.** The app ships
+   without one. On a machine with enough memory it fetches Llama 3.1 8B Instruct (Q4_K_M) —
+   **about 4.9 GB**. That model declares a 10 GB RAM floor, so **on an 8 GB machine it is
+   never offered**: you are offered a 3B model of about 2.0 GB instead. Either way it is a
+   **third-party open-weights model that we package and run — Armore did not train it**, and
+   it asks you before downloading. After that, the reasoning is local and works offline.
+
+   ⚠️ **The download does not resume.** If it drops partway, the next attempt starts from
+   zero rather than continuing, so on an unreliable connection it may take several attempts.
 2. **Auto-update does not work end to end yet.** The manifests are published and we have
    not driven an update through, so do not rely on being offered one — including a
    security one. Update by hand for now.
@@ -90,13 +109,13 @@ Every installer's SHA-512 is named in a signed update manifest published beside 
 Download the manifest, compute the hash, compare:
 
 ```sh
-TAG=v1.0.11
+TAG=v1.0.12
 BASE="https://github.com/uniQ-Ventures/armore-edge-public/releases/download/$TAG"
 curl -fLO "$BASE/latest-mac.yml"                                 # or latest.yml (Windows) / latest-linux.yml
-curl -fLO "$BASE/Armore-Edge-1.0.11-arm64.dmg"
+curl -fLO "$BASE/Armore-Edge-1.0.12-arm64.dmg"
 
 # the manifest carries base64-encoded sha512 — compute the same form and eyeball it
-openssl dgst -sha512 -binary Armore-Edge-1.0.11-arm64.dmg | openssl base64 -A; echo
+openssl dgst -sha512 -binary Armore-Edge-1.0.12-arm64.dmg | openssl base64 -A; echo
 grep -A2 'arm64.dmg' latest-mac.yml
 ```
 
@@ -110,7 +129,7 @@ top-level default.
 ### The full chain, with cosign
 
 ```sh
-./scripts/verify-release.sh Armore-Edge-1.0.11-arm64.dmg
+./scripts/verify-release.sh Armore-Edge-1.0.12-arm64.dmg
 ```
 
 Needs [cosign](https://docs.sigstore.dev/cosign/system_config/installation/) ≥ 2.4. It
@@ -123,7 +142,7 @@ signing repo. You do not need access. It does mean this check asks you to accept
 named repo is ours — which is why the sha512 route above exists.
 
 ⚠️ **Every digest changed in this release**, because packaging re-cut by tag. If you kept a
-hash from v1.0.10, it will not match — that is expected, and it is why the commands above
+hash from v1.0.11, it will not match — that is expected, and it is why the commands above
 read the manifest rather than quoting a digest.
 
 ## What is not here
@@ -136,7 +155,7 @@ read the manifest rather than quoting a digest.
 one for the JS tree) and a TUF metadata bundle ship with this release, so you can inspect
 dependencies before installing.
 
-## Known issues in v1.0.11
+## Known issues in v1.0.12
 
 | | |
 |---|---|
